@@ -20,18 +20,22 @@ const getProductsById = async (req, res) => {
 const createProduct = async (req, res) => {
     console.log(req.body);
     const product = await productService.createProduct(req.body);
-    res.status(200).json(product);
+    res.status(201).json(product);
 }
 
-const updateProductsById = async (req, res) => {
-    const id =Number(req.params.id);
-    if(!Number.isInteger(id) || id <=0){
-        const error = new Error("Invalid product ID");
-        error.statusCode = 400;
-        throw error;
-    }
-    const product = await productService.updateProductsById(id);
-    res.json(product);
+const updateProductsById = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const productData = req.body;
+
+    const updatedProduct = await productService.updateProductsById(
+      id,
+      productData
+    );
+    res.status(200).json(updatedProduct);
+  } catch (error) {
+    next(error);
+  }
 }
 
 const deleteProductsById = async (req, res) => {
@@ -41,8 +45,8 @@ const deleteProductsById = async (req, res) => {
         error.statusCode = 400;
         throw error;
     }
-    const product = await productService.deleteProductById(id);
-    res.json(product);
+    await productService.deleteProductById(id);
+    res.status(204).send();
 }
 
 module.exports = {

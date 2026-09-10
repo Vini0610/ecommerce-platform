@@ -1,7 +1,7 @@
 const express = require('express');
-// const userRoutes = require("./routes/user.routes")
-// const errorHandler = require("./middleware/error.middleware")
-// const { pool, testDataBaseConnection } = require("./config/db")
+const productRoutes = require("./routes/products.routes")
+const errorHandler = require("./middleware/error.middleware")
+const { pool, testDataBaseConnection } = require("./config/db")
 
 const app = express();
 
@@ -16,9 +16,10 @@ app.get("/", (req, res) => {
     })
 })
 
-app.use(userRoutes);
+app.use(productRoutes);
 
 app.use(errorHandler);
+
 let server;
 const startServer = async () => {
     try {
