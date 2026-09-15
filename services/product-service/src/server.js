@@ -2,7 +2,7 @@ const express = require('express');
 const productRoutes = require("./routes/products.routes")
 const errorHandler = require("./middleware/error.middleware")
 const { pool, testDataBaseConnection } = require("./config/db")
-
+const { connectRedis } = require("./config/redis")
 const app = express();
 
 const PORT = 3001;
@@ -24,6 +24,7 @@ let server;
 const startServer = async () => {
     try {
         await testDataBaseConnection();
+        await connectRedis();
         server = app.listen(PORT, () => {
             console.log(`Product service is in port ${PORT}`)
         });
