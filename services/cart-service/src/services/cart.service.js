@@ -1,5 +1,65 @@
 const { pool } = require("../config/db");
 
+const productServiceUrl = process.env.PRODUCT_SERVICE_URL || "http://localhost:3001";
+
+const getProductForCart = async (productId, quantity) => {
+    const maxAttempts = 3;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+            console.log(`Attempt ${attempt} to fetch product ${productId} from product service`);
+            const response = await fetch(`${productServiceUrl}/products/${productId}`, {
+                signal: AbortSignal.timeout(3000)
+            });
+
+            if (response.status === 404) {
+                const error = new Error("Product is not available");
+                error.statusCode = 404;
+                throw error;
+            }
+
+            if (response.status === 409) {
+                const error = new Error("Product is out of stock");
+                error.statusCode = 409;
+                throw error;
+            }
+
+            if (!response.ok) {
+                const error = new Error("Unable to verify product availability");
+                error.statusCode = 502;
+                throw error;
+            }
+
+            const product = await response.json();
+            if (Number(product.stock) < quantity) {
+                const error = new Error("Product is out of stock");
+                error.statusCode = 409;
+                throw error;
+            }
+
+            return product;
+        } catch (error) {
+            if (error.statusCode === 404 || error.statusCode === 409) {
+                throw error;
+            }
+
+            if (attempt === maxAttempts) {
+                const serviceError = error.name === "TimeoutError"
+                    ? new Error("Product service request timed out")
+                    : error.statusCode === 502
+                        ? error
+                        : new Error("Product service is unavailable");
+
+                serviceError.statusCode = error.name === "TimeoutError"
+                    ? 504
+                    : serviceError.statusCode || 503;
+                throw serviceError;
+            }
+            await new Promise(resolve => setTimeout(resolve, 500 * Math.pow(2, attempt - 1))); // Exponential backoff
+        }
+    }
+};
+
 const findActiveCartId = async (connection, userId) => {
     const [rows] = await connection.query(
         "select id from carts where user_id = ? and lower(status) = 'active'",
@@ -79,9 +139,11 @@ const getCartByUserId = async (userId) => {
         connection.release();
     }
 }
-   
+
 
 const addItemToUserCart = async (userId, productId, quantity) => {
+    await getProductForCart(productId, quantity);
+
     return withTransaction(async (connection) => {
         const cartId = await getOrCreateActiveCartId(connection, userId);
         const [result] = await connection.query(
@@ -93,6 +155,8 @@ const addItemToUserCart = async (userId, productId, quantity) => {
 };
 
 const updateCartItem = async (userId, productId, quantity) => {
+    await getProductForCart(productId, quantity);
+
     return withTransaction(async (connection) => {
         const cartId = await getActiveCartId(connection, userId);
         const [result] = await connection.query(
