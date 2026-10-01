@@ -27,6 +27,33 @@ services:
       DB_NAME: ecommerce_products
       REDIS_URL: redis://redis:6379
 
+  cart-service:
+    build:
+      context: ./services/cart-service
+    ports:
+      - "3002:3002"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ecommerce_carts
+      PRODUCT_SERVICE_URL: http://product-service:3001
+    depends_on:
+        - product-service
+
+  user-service:
+    build:
+      context: ./services/user-service
+    ports:
+      - "3003:3003"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      DB_NAME: ecommerce_users
+      
 volumes:
   ecommerce-mysql-data:
     external: true
